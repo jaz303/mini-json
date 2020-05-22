@@ -141,6 +141,45 @@ mj_status_t mj_writer_put_null(mj_writer_t *w) {
 	return push_string(w, "null");
 }
 
+#ifdef MINI_JSON_USE_SNPRINTF
+
+#include <stdio.h>
+
+mj_status_t mj_writer_put_int(mj_writer_t *w, int val) {
+	CHECK(comma(w));
+	int maxlen = w->ep - w->sp;
+	int written = snprintf(&w->buffer[w->sp], maxlen, "%d", val);
+	if (written >= maxlen) {
+		return  MJ_NOMEM;
+	}
+	w->sp += written;
+	return MJ_OK;
+}
+
+mj_status_t mj_writer_put_float(mj_writer_t *w, float val) {
+	CHECK(comma(w));
+	int maxlen = w->ep - w->sp;
+	int written = snprintf(&w->buffer[w->sp], maxlen, "%f", val);
+	if (written >= maxlen) {
+		return  MJ_NOMEM;
+	}
+	w->sp += written;
+	return MJ_OK;
+}
+
+mj_status_t mj_writer_put_double(mj_writer_t *w, double val) {
+	CHECK(comma(w));
+	int maxlen = w->ep - w->sp;
+	int written = snprintf(&w->buffer[w->sp], maxlen, "%f", val);
+	if (written >= maxlen) {
+		return  MJ_NOMEM;
+	}
+	w->sp += written;
+	return MJ_OK;
+}
+
+#else
+
 mj_status_t mj_writer_put_int(mj_writer_t *w, int val) {
 	CHECK(comma(w));
 	
@@ -173,3 +212,13 @@ mj_status_t mj_writer_put_int(mj_writer_t *w, int val) {
 
 	return MJ_OK;
 }
+
+mj_status_t mj_writer_put_float(mj_writer_t *w, float val) {
+	return MJ_UNSUPPORTED;
+}
+
+mj_status_t mj_writer_put_double(mj_writer_t *w, double val) {
+	return MJ_UNSUPPORTED;
+}
+
+#endif
