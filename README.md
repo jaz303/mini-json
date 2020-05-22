@@ -7,7 +7,7 @@ Core principles:
   - no dynamic memory allocation
   - minimal dependence on stdlib (currently `strlen()` and, optionally, `snprintf()`)
 
-The API is designed to be simple and explict, exposing one function for each JSON type. The start/end pattern utilised for objects and arrays allows for arbitrary nesting with no performance penalty. All state is maintained within `mj_writer_t*` structs so it's possible to pass these around and compose JSON from multiple subsystems in your program.
+The API is designed to be simple and explict, exposing one function for each JSON type - just point `mini-json` at a buffer and you're good to go. Additionally, a `start`/`end` pattern is utilised for objects and arrays which allows for arbitrary nesting with no performance penalty. All state is maintained within `mj_writer_t*` structs so it's possible to pass these around and compose JSON from multiple subsystems in your program.
 
 At present only the encoder is written. I'll likely add a streaming decoder in the near future too.
 
