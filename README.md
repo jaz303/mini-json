@@ -1,6 +1,15 @@
 # mini-json
 
-Status: encoder is working; unit tests required.
+`mini-json` is a lightweight JSON library designed for use in embedded systems.
+
+Core principles:
+
+  - no dynamic memory allocation
+  - minimal dependence on stdlib (currently `strlen()` and, optionally, `snprintf()`)
+
+At present only the encoder is written. I'll likely add a streaming decoder in the near future too.
+
+Status: working; unit tests required.
 
 ## Writer
 
