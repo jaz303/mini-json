@@ -51,6 +51,13 @@ int main() {
 }
 ```
 
+Output:
+
+```json
+Here's your JSON (length=152):
+["device-state",{"battery-level":47.799999,"wifi-ssid":"vigor","wifi-link-quality":52,"binary-data":"bG92ZSB0YWtlIG1lIGRvd24gKHRvIHRoZSBzdHJlZXRzKQ=="}]
+```
+
 ### API
 
 #### `void mj_writer_init(mj_writer_t *w, char *buffer, int len)`
