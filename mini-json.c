@@ -111,3 +111,41 @@ mj_status_t mj_writer_put_string(mj_writer_t *w, const char *str) {
 	CHECK(comma(w));
 	return push_json_string(w, str);
 }
+
+mj_status_t mj_writer_put_null(mj_writer_t *w) {
+	CHECK(comma(w));
+	return push_string(w, "null");
+}
+
+mj_status_t mj_writer_put_int(mj_writer_t *w, int val) {
+	CHECK(comma(w));
+	
+	if (val == 0) {
+		return push_start(w, '0');
+	}
+
+	if (val < 0) {
+		CHECK(push_start(w, '-'));
+		val = -val;
+	}
+
+	int len = 0, tmp = val;
+	while (tmp > 0) {
+		tmp /= 10;
+		len++;
+	}
+
+	int end = w->sp + len;
+	if (end > w->ep) {
+		return MJ_NOMEM;
+	}
+
+	w->sp = end;
+	
+	while (val != 0) {
+		w->buffer[--end] = '0' + (val % 10);
+		val /= 10;
+	}
+
+	return MJ_OK;
+}

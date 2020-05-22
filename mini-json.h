@@ -19,5 +19,7 @@ mj_status_t mj_writer_end(mj_writer_t *w);
 mj_status_t mj_writer_put_key(mj_writer_t *w, const char *key);
 mj_status_t mj_writer_put_bool(mj_writer_t *w, int val);
 mj_status_t mj_writer_put_string(mj_writer_t *w, const char *str);
+mj_status_t mj_writer_put_null(mj_writer_t *w);
+mj_status_t mj_writer_put_int(mj_writer_t *w, int val);
 
 #endif
