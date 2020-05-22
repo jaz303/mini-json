@@ -140,6 +140,47 @@ int mj_writer_put_string(mj_writer_t *w, const char *str) {
 	return push_json_string(w, str);
 }
 
+static const char base64_table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+#define LSHM(v, s, m) (((v) << (s)) & (m))
+#define RSHM(v, s, m) (((v) >> (s)) & (m))
+
+int mj_writer_put_base64(mj_writer_t *w, const char *data, int len) {
+	CHECK(comma(w));
+	
+	int encoded_len = ((4 * len / 3) + 3) & ~3;
+	if (w->sp + encoded_len + 2 > w->ep)
+		return MJ_NOMEM;
+
+	P('"');
+	
+	int end = w->sp + encoded_len;
+	for (int i = 0; i < len; i += 3) {
+		P(base64_table[RSHM(data[i], 2, 0x3F)]);
+		char e = LSHM(data[i], 4, 0x30);
+		if (i + 1 < len) {
+			P(base64_table[e | RSHM(data[i+1], 4, 0x0F)]);
+			e = LSHM(data[i+1], 2, 0x3C);
+			if (i + 2 < len) {
+				P(base64_table[e | RSHM(data[i+2], 6, 0x03)]);
+				P(base64_table[LSHM(data[i+2], 0, 0x3F)]);
+			} else {
+				P(base64_table[e]);
+			}
+		} else {
+			P(base64_table[e]);	
+		}
+	}
+
+	while (w->sp < end) {
+		P('=');
+	}
+
+	P('"');
+
+	return MJ_OK;
+}
+
 int mj_writer_put_null(mj_writer_t *w) {
 	CHECK(comma(w));
 	return push_string(w, "null");
