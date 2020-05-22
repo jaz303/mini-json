@@ -2,10 +2,11 @@
 #include <string.h>
 
 #define CHECK(err) do { if ((err) != MJ_OK) { return (err); } } while(0)
+#define P(c) w->buffer[w->sp++] = (c)
 
 static int push_start(mj_writer_t *w, char c) {
 	if (w->sp < w->ep) {
-		w->buffer[w->sp++] = c;
+		P(c);
 		return MJ_OK;
 	} else {
 		return MJ_NOMEM;
@@ -31,22 +32,45 @@ static int push_string(mj_writer_t *w, const char *str) {
 		return MJ_NOMEM;
 	}
 	for (int i = 0; i < len; ++i) {
-		w->buffer[w->sp++] = str[i];
+		P(str[i]);
 	}
 	return MJ_OK;
 }
 
 static int push_json_string(mj_writer_t *w, const char *str) {
-	int len = strlen(str);
-	// TODO: proper escaping
+	int len = 0;
+
+	const char *tmp = str;
+	while (*tmp) {
+		char ch = *(tmp++);
+		if (ch == '\b' || ch == '\f' || ch == '\n' || ch == '\r' || ch == '\t' || ch == '"' || ch == '\\') {
+			len += 2;
+		} else {
+			len += 1;
+		}
+	}
+
 	if (w->sp + len + 2 > w->ep) {
 		return MJ_NOMEM;
 	}
-	w->buffer[w->sp++] = '"';
-	for (int i = 0; i < len; ++i) {
-		w->buffer[w->sp++] = str[i];
+
+	P('"');
+	while (*str) {
+		char ch = *(str++);
+		switch (ch) {
+			case '\b': P('\\'); P('b'); break;
+			case '\f': P('\\'); P('f'); break;
+			case '\n': P('\\'); P('n'); break;
+			case '\r': P('\\'); P('r'); break;
+			case '\t': P('\\'); P('t'); break;
+			case '"' : P('\\'); P('"'); break;
+			case '\\': P('\\'); P('\\'); break;
+			default:   P(ch);
+		}
 	}
-	w->buffer[w->sp++] = '"';
+	P('"');
+
+	return MJ_OK;
 }
 
 static int comma(mj_writer_t *w) {

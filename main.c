@@ -10,10 +10,10 @@ int main() {
 	mj_writer_init(&w, buffer, 512);
 	
 	mj_writer_start_array(&w);
-		mj_writer_put_string(&w, "awesome");
+		mj_writer_put_string(&w, "awe\r\nsome");
 		mj_writer_put_bool(&w, 0);
 		mj_writer_start_object(&w);
-			mj_writer_put_key(&w, "foo");
+			mj_writer_put_key(&w, "fo\"o");
 			mj_writer_put_string(&w, "bar");
 			mj_writer_put_key(&w, "bleem");
 			mj_writer_put_bool(&w, 0);
