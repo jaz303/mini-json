@@ -30,9 +30,9 @@ int main() {
 		mj_writer_end(&w);
 	mj_writer_end(&w);
 	
-	mj_writer_end(&w);
+	int len = mj_writer_end(&w);
 
-	puts("Here's your JSON:");
+	printf("Here's your JSON (length=%d):\n", len);
 	puts(buffer);
 
 	return 0;
@@ -43,25 +43,67 @@ int main() {
 
 #### `void mj_writer_init(mj_writer_t *w, char *buffer, int len)`
 
-#### `mj_status_t mj_writer_start_array(mj_writer_t *w)`
+Initialise writer `w` with the given `buffer` of length `len`.
 
-#### `mj_status_t mj_writer_start_object(mj_writer_t *w)`
+#### `int mj_writer_start_array(mj_writer_t *w)`
 
-#### `mj_status_t mj_writer_end(mj_writer_t *w)`
+Start a new array.
 
-#### `mj_status_t mj_writer_put_key(mj_writer_t *w, const char *key)`
+Returns `MJ_OK` on success or error code on failure.
 
-#### `mj_status_t mj_writer_put_bool(mj_writer_t *w, int val)`
+#### `int mj_writer_start_object(mj_writer_t *w)`
 
-#### `mj_status_t mj_writer_put_string(mj_writer_t *w, const char *str)`
+Start a new object.
 
-#### `mj_status_t mj_writer_put_null(mj_writer_t *w)`
+Returns `MJ_OK` on success or error code on failure.
 
-#### `mj_status_t mj_writer_put_int(mj_writer_t *w, int val)`
+#### `int mj_writer_end(mj_writer_t *w)`
 
-#### `mj_status_t mj_writer_put_float(mj_writer_t *w, float val)`
+If currently inside an array or object, `mj_writer_end` inserts the correct closing symbol (either `]` or `}`), returning `MJ_OK` on success or error code on failure.
 
-#### `mj_status_t mj_writer_put_double(mj_writer_t *w, double val)`
+If at the top level, a null terminator is written to the underlying buffer, returning the final length of the JSON string on success (excluding null terminator), or error code on failure.
+
+#### `int mj_writer_put_key(mj_writer_t *w, const char *key)`
+
+Write an object key.
+
+Returns `MJ_OK` on success or error code on failure.
+
+#### `int mj_writer_put_bool(mj_writer_t *w, int val)`
+
+Write a boolean value.
+
+Returns `MJ_OK` on success or error code on failure.
+
+#### `int mj_writer_put_string(mj_writer_t *w, const char *str)`
+
+Write a string value.
+
+Returns `MJ_OK` on success or error code on failure.
+
+#### `int mj_writer_put_null(mj_writer_t *w)`
+
+Write a null value.
+
+Returns `MJ_OK` on success or error code on failure.
+
+#### `int mj_writer_put_int(mj_writer_t *w, int val)`
+
+Write an int value.
+
+Returns `MJ_OK` on success or error code on failure.
+
+#### `int mj_writer_put_float(mj_writer_t *w, float val)`
+
+Write a float value (see Notes, below).
+
+Returns `MJ_OK` on success or error code on failure.
+
+#### `int mj_writer_put_double(mj_writer_t *w, double val)`
+
+Write a double value (see Notes, below).
+
+Returns `MJ_OK` on success or error code on failure.
 
 ## Notes
 

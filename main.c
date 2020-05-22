@@ -21,9 +21,9 @@ int main() {
 		mj_writer_end(&w);
 	mj_writer_end(&w);
 	
-	mj_writer_end(&w);
+	int len = mj_writer_end(&w);
 
-	puts("Here's your JSON:");
+	printf("Here's your JSON (length=%d):\n", len);
 	puts(buffer);
 
 	return 0;

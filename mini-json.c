@@ -92,7 +92,7 @@ void mj_writer_init(mj_writer_t *w, char *buffer, int len) {
 	w->depth = 0;
 }
 
-mj_status_t mj_writer_start_array(mj_writer_t *w) {
+int mj_writer_start_array(mj_writer_t *w) {
 	CHECK(comma(w));
 	CHECK(push_start(w, '['));
 	CHECK(push_end(w, ']'));
@@ -100,7 +100,7 @@ mj_status_t mj_writer_start_array(mj_writer_t *w) {
 	return MJ_OK;
 }
 
-mj_status_t mj_writer_start_object(mj_writer_t *w) {
+int mj_writer_start_object(mj_writer_t *w) {
 	CHECK(comma(w));
 	CHECK(push_start(w, '{'));
 	CHECK(push_end(w, '}'));
@@ -108,35 +108,39 @@ mj_status_t mj_writer_start_object(mj_writer_t *w) {
 	return MJ_OK;
 }
 
-mj_status_t mj_writer_end(mj_writer_t *w) {
+int mj_writer_end(mj_writer_t *w) {
+	if (w->depth < 0)
+		return MJ_STATE;
+
+	int ret = MJ_OK;
 	if (w->depth == 0) {
 		CHECK(push_start(w, '\0'));
+		ret = w->sp - 1;
 	} else if (w->depth > 0) {
 		push_start(w, pop_end(w));
-	} else {
-		return MJ_STATE;
 	}
+
 	w->depth--;
-	return MJ_OK;
+	return ret;
 }
 
-mj_status_t mj_writer_put_key(mj_writer_t *w, const char *key) {
+int mj_writer_put_key(mj_writer_t *w, const char *key) {
 	CHECK(comma(w));
 	CHECK(push_json_string(w, key));
 	return push_start(w, ':');
 }
 
-mj_status_t mj_writer_put_bool(mj_writer_t *w, int val) {
+int mj_writer_put_bool(mj_writer_t *w, int val) {
 	CHECK(comma(w));
 	return push_string(w, val ? "true" : "false");
 }
 
-mj_status_t mj_writer_put_string(mj_writer_t *w, const char *str) {
+int mj_writer_put_string(mj_writer_t *w, const char *str) {
 	CHECK(comma(w));
 	return push_json_string(w, str);
 }
 
-mj_status_t mj_writer_put_null(mj_writer_t *w) {
+int mj_writer_put_null(mj_writer_t *w) {
 	CHECK(comma(w));
 	return push_string(w, "null");
 }
@@ -145,7 +149,7 @@ mj_status_t mj_writer_put_null(mj_writer_t *w) {
 
 #include <stdio.h>
 
-mj_status_t mj_writer_put_int(mj_writer_t *w, int val) {
+int mj_writer_put_int(mj_writer_t *w, int val) {
 	CHECK(comma(w));
 	int maxlen = w->ep - w->sp;
 	int written = snprintf(&w->buffer[w->sp], maxlen, "%d", val);
@@ -156,7 +160,7 @@ mj_status_t mj_writer_put_int(mj_writer_t *w, int val) {
 	return MJ_OK;
 }
 
-mj_status_t mj_writer_put_float(mj_writer_t *w, float val) {
+int mj_writer_put_float(mj_writer_t *w, float val) {
 	CHECK(comma(w));
 	int maxlen = w->ep - w->sp;
 	int written = snprintf(&w->buffer[w->sp], maxlen, "%f", val);
@@ -167,7 +171,7 @@ mj_status_t mj_writer_put_float(mj_writer_t *w, float val) {
 	return MJ_OK;
 }
 
-mj_status_t mj_writer_put_double(mj_writer_t *w, double val) {
+int mj_writer_put_double(mj_writer_t *w, double val) {
 	CHECK(comma(w));
 	int maxlen = w->ep - w->sp;
 	int written = snprintf(&w->buffer[w->sp], maxlen, "%f", val);
@@ -180,7 +184,7 @@ mj_status_t mj_writer_put_double(mj_writer_t *w, double val) {
 
 #else
 
-mj_status_t mj_writer_put_int(mj_writer_t *w, int val) {
+int mj_writer_put_int(mj_writer_t *w, int val) {
 	CHECK(comma(w));
 	
 	if (val == 0) {
@@ -213,11 +217,11 @@ mj_status_t mj_writer_put_int(mj_writer_t *w, int val) {
 	return MJ_OK;
 }
 
-mj_status_t mj_writer_put_float(mj_writer_t *w, float val) {
+int mj_writer_put_float(mj_writer_t *w, float val) {
 	return MJ_UNSUPPORTED;
 }
 
-mj_status_t mj_writer_put_double(mj_writer_t *w, double val) {
+int mj_writer_put_double(mj_writer_t *w, double val) {
 	return MJ_UNSUPPORTED;
 }
 
