@@ -8,33 +8,33 @@
 typedef void (*mj_callback_fn)(void *userdata);
 
 typedef struct mj_reader {
-	char *strbuf;
-	int strbuf_len;
-	mj_callback_fn callback;
-	void *userdata;
+    char *strbuf;
+    int strbuf_len;
+    mj_callback_fn callback;
+    void *userdata;
 
-	union {
-		int i;
-		MINI_JSON_FLOAT_TYPE f;
-	} value;
+    union {
+        int i;
+        MINI_JSON_FLOAT_TYPE f;
+    } value;
 
-	int state;
-	const char *kw;
-	int kw_next, kw_tok;
+    int state;
+    const char *kw;
+    int kw_next, kw_tok;
 
-	int acc, divisor;
+    int acc, divisor;
 } mj_reader_t;
 
 typedef struct mj_writer {
-	char *buffer;
-	int buffer_len, sp, ep, depth;
+    char *buffer;
+    int buffer_len, sp, ep, depth;
 } mj_writer_t;
 
 typedef enum mj_status {
-	MJ_OK 			= 0,
-	MJ_NOMEM 		= -1,
-	MJ_STATE 		= -2,
-	MJ_UNSUPPORTED	= -3
+    MJ_OK           = 0,
+    MJ_NOMEM        = -1,
+    MJ_STATE        = -2,
+    MJ_UNSUPPORTED  = -3
 } mj_status_t;
 
 void mj_reader_init(mj_reader_t *r, char *string_buffer, int string_buffer_len);
