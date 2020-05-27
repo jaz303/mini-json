@@ -23,6 +23,7 @@ int mj_writer_put_string(mj_writer_t *w, const char *str);
 int mj_writer_put_base64(mj_writer_t *w, const char *data, int len);
 int mj_writer_put_null(mj_writer_t *w);
 int mj_writer_put_int(mj_writer_t *w, int val);
+int mj_writer_put_long(mj_writer_t *w, long val);
 int mj_writer_put_float(mj_writer_t *w, float val);
 int mj_writer_put_double(mj_writer_t *w, double val);
 

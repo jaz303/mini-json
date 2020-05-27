@@ -201,6 +201,17 @@ int mj_writer_put_int(mj_writer_t *w, int val) {
 	return MJ_OK;
 }
 
+int mj_writer_put_long(mj_writer_t *w, long val) {
+	CHECK(comma(w));
+	int maxlen = w->ep - w->sp;
+	int written = snprintf(&w->buffer[w->sp], maxlen, "%ld", val);
+	if (written >= maxlen) {
+		return  MJ_NOMEM;
+	}
+	w->sp += written;
+	return MJ_OK;
+}
+
 int mj_writer_put_float(mj_writer_t *w, float val) {
 	CHECK(comma(w));
 	int maxlen = w->ep - w->sp;
@@ -225,6 +236,7 @@ int mj_writer_put_double(mj_writer_t *w, double val) {
 
 #else
 
+// maybe this should just call mj_writer_put_long() ?
 int mj_writer_put_int(mj_writer_t *w, int val) {
 	CHECK(comma(w));
 	
@@ -238,6 +250,39 @@ int mj_writer_put_int(mj_writer_t *w, int val) {
 	}
 
 	int len = 0, tmp = val;
+	while (tmp > 0) {
+		tmp /= 10;
+		len++;
+	}
+
+	int end = w->sp + len;
+	if (end > w->ep) {
+		return MJ_NOMEM;
+	}
+
+	w->sp = end;
+	
+	while (val != 0) {
+		w->buffer[--end] = '0' + (val % 10);
+		val /= 10;
+	}
+
+	return MJ_OK;
+}
+
+int mj_writer_put_long(mj_writer_t *w, long val) {
+	CHECK(comma(w));
+	
+	if (val == 0) {
+		return push_start(w, '0');
+	}
+
+	if (val < 0) {
+		CHECK(push_start(w, '-'));
+		val = -val;
+	}
+
+	long len = 0, tmp = val;
 	while (tmp > 0) {
 		tmp /= 10;
 		len++;
