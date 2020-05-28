@@ -76,7 +76,6 @@ static int is_digit(char ch) {
 
 static int reader_push_start(mj_reader_t *r, char ch) {
     if (r->sp >= r->ep) {
-        r->tok_state = MJ_NOMEM;
         return MJ_NOMEM;
     }
     r->strbuf[r->sp++] = ch;
