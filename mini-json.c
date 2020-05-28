@@ -14,8 +14,8 @@
 
 // +ve return values from tokeniser is next action
 enum {
-    CONTINUE = 1, // next tokenise again with same char
-    AGAIN = 2, // proceed to next char
+    CONTINUE = 1, // proceed to next char
+    AGAIN = 2, // tokenise again with same char
 };
 
 // tokeniser state
