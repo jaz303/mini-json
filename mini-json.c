@@ -12,8 +12,15 @@
 //
 // Reading
 
-#define READ_ERROR(err) r->state = (err); return (err)
+#define READ_ERROR(err) r->tok_state = (err); return (err)
 
+// +ve return values from tokeniser is next action
+enum {
+	CONTINUE = 1, // next tokenise again with same char
+	AGAIN = 2, // proceed to next char
+};
+
+// tokeniser state
 enum {
     OUT,
     KEYWORD,
@@ -22,23 +29,39 @@ enum {
     FLOAT,
     STR,
     STR_ESC,
-    ERROR
+    STR_END
 };
 
+// tokens
 enum {
-    TOK_CONTINUE = 0,
-    TOK_OBJECT_START, // 1
+    TOK_OBJECT_START = 1, // 1
     TOK_OBJECT_END, // 2
-    TOK_ARRAY_START, // 3
-    TOK_ARRAY_END, // 4
-    TOK_NULL, // 5
-    TOK_TRUE, // 6
-    TOK_FALSE, // 7
-    TOK_INT, // 8
-    TOK_FLOAT, // 9
-    TOK_STRING, // 10
-    TOK_COMMA, // 11
-    TOK_COLON // 12
+    TOK_OBJECT_KEY, // 3
+    TOK_ARRAY_START, // 4
+    TOK_ARRAY_END, // 5
+    TOK_NULL, // 6
+    TOK_TRUE, // 7
+    TOK_FALSE, // 8
+    TOK_INT, // 9
+    TOK_FLOAT, // 10
+    TOK_STRING, // 11
+    TOK_COMMA, // 12
+};
+
+const char *token_names[] = {
+	"!",
+	"{",
+	"}",
+	"<object-key>",
+	"[",
+	"]",
+	"null",
+	"true",
+	"false",
+	"<int>",
+	"<float>",
+	"<string>",
+	","
 };
 
 static void nop(void *userdata) {
@@ -55,47 +78,61 @@ static int is_digit(char ch) {
 
 static int reader_push_start(mj_reader_t *r, char ch) {
     if (r->sp >= r->ep) {
-        r->state = MJ_NOMEM;
+        r->tok_state = MJ_NOMEM;
         return MJ_NOMEM;
     }
     r->strbuf[r->sp++] = ch;
     return MJ_OK;
 }
 
+static int reader_emit(mj_reader_t *r, int tok) {
+	if (tok == TOK_INT) {
+        printf("token: %s (%ld)\n", token_names[tok], r->value.i);
+    } else if (tok == TOK_FLOAT) {
+        printf("token: %s (%f)\n", token_names[tok], r->value.f);
+    } else if (tok == TOK_STRING) {
+        printf("token: %s (%.*s)\n", token_names[tok], r->sp - r->start, r->strbuf + r->start);
+    } else if (tok == TOK_OBJECT_KEY) {
+        printf("token: %s (%.*s)\n", token_names[tok], r->sp - r->start, r->strbuf + r->start);
+    } else {
+        printf("token: %s\n", token_names[tok]);
+    }
+    return CONTINUE;
+}
+
 inline static int do_OUT(mj_reader_t *r, char ch) {
     switch (ch) {
-        case '{': return TOK_OBJECT_START;
-        case '}': return TOK_OBJECT_END;
-        case '[': return TOK_ARRAY_START;
-        case ']': return TOK_ARRAY_END;
-        case ',': return TOK_COMMA;
-        case ':': return TOK_COLON;
+        case '{': return reader_emit(r, TOK_OBJECT_START);
+        case '}': return reader_emit(r, TOK_OBJECT_END);
+        case '[': return reader_emit(r, TOK_ARRAY_START);
+        case ']': return reader_emit(r, TOK_ARRAY_END);
+        case ',': return reader_emit(r, TOK_COMMA);
         case '-':
         case '+':
             r->sp = r->start;
             CHECK(reader_push_start(r, ch));
-            r->state = SIGN;
+            r->tok_state = SIGN;
             break;
         case '"':
             r->sp = r->start;
-            r->state = STR;
+            r->tok_state = STR;
             break;
         case 't':
             r->value.i = 1;
-            r->state = KEYWORD;
+            r->tok_state = KEYWORD;
             r->kw = "rue";
             r->kw_tok = TOK_TRUE;
             r->kw_next = 0;
             break;
         case 'f':
             r->value.i = 0;
-            r->state = KEYWORD;
+            r->tok_state = KEYWORD;
             r->kw = "alse";
             r->kw_tok = TOK_FALSE;
             r->kw_next = 0;
             break;
         case 'n':
-            r->state = KEYWORD;
+            r->tok_state = KEYWORD;
             r->kw = "ull";
             r->kw_tok = TOK_NULL;
             r->kw_next = 0;
@@ -106,55 +143,53 @@ inline static int do_OUT(mj_reader_t *r, char ch) {
             } else if (is_digit(ch)) {
                 r->sp = r->start;
                 CHECK(reader_push_start(r, ch));
-                r->state = INT;
+                r->tok_state = INT;
             } else {
-                r->state = MJ_PARSE_ERROR;
-                return r->state;
+            	return MJ_PARSE_ERROR;
             }
             break;
     }
-    return TOK_CONTINUE;
+    return CONTINUE;
 }
 
 inline static int do_KEYWORD(mj_reader_t *r, char ch) {
     if (ch == r->kw[r->kw_next]) {
         r->kw_next++;
         if (r->kw[r->kw_next] == 0) {
-            r->state = OUT;
-            return r->kw_tok;
+        	r->tok_state = OUT;
+        	return reader_emit(r, r->kw_tok);
+        } else {
+        	return CONTINUE;	
         }
-        return TOK_CONTINUE;
     } else {
-        r->state = MJ_PARSE_ERROR;
-        return r->state;
+        return MJ_PARSE_ERROR;
     }
 }
 
 inline static int do_SIGN(mj_reader_t *r, char ch) {
     if (is_digit(ch)) {
         CHECK(reader_push_start(r, ch));
-        r->state = INT;
-        return TOK_CONTINUE;
+        r->tok_state = INT;
+        return CONTINUE;
     } else {
-        READ_ERROR(MJ_PARSE_ERROR);
+    	return MJ_PARSE_ERROR;
     }
 }
 
 inline static int do_INT(mj_reader_t *r, char ch) {
     if (is_digit(ch)) {
         CHECK(reader_push_start(r, ch));
-        return TOK_CONTINUE;
+        return CONTINUE;
     } else if (ch == '.') {
         CHECK(reader_push_start(r, ch));
-        r->state = FLOAT;
-        return TOK_CONTINUE;
+        r->tok_state = FLOAT;
+        return CONTINUE;
     } else {
         char *end = r->strbuf + r->sp;
         r->value.i = strtol(r->strbuf + r->start, &end, 10);
-
-        // TODO: parse string buffer into r->value.i
-        r->state = OUT;
-        return TOK_INT;
+        reader_emit(r, TOK_INT);
+        r->tok_state = OUT;
+        return AGAIN;
     }
     
 }
@@ -162,29 +197,30 @@ inline static int do_INT(mj_reader_t *r, char ch) {
 inline static int do_FLOAT(mj_reader_t *r, char ch) {
     if (is_digit(ch)) {
         CHECK(reader_push_start(r, ch));
-        return TOK_CONTINUE;
+        return CONTINUE;
     } else {
         char *end = r->strbuf + r->sp;
         r->value.f = strtof(r->strbuf + r->start, &end);
-        r->state = OUT;
-        return TOK_FLOAT;
+        reader_emit(r, TOK_FLOAT);
+        r->tok_state = OUT;
+        return AGAIN;
     }
 }
 
 inline static int do_STR(mj_reader_t *r, char ch) {
     if (ch == '"') {
-        r->state = OUT;
-        return TOK_STRING;
+    	r->tok_state = STR_END;
+    	return CONTINUE;
     }
 
     if (ch == '\\') {
-        r->state = STR_ESC;
-        return TOK_CONTINUE;
+        r->tok_state = STR_ESC;
+        return CONTINUE;
     }
 
     CHECK(reader_push_start(r, ch));
 
-    return TOK_CONTINUE;
+    return CONTINUE;
 }
 
 inline static int do_STR_ESC(mj_reader_t *r, char ch) {
@@ -196,9 +232,25 @@ inline static int do_STR_ESC(mj_reader_t *r, char ch) {
         case 't':   CHECK(reader_push_start(r, '\t')); break;
         case '"':   CHECK(reader_push_start(r, '"'));  break;
         case '\\':  CHECK(reader_push_start(r, '\\')); break;
-        default:    READ_ERROR(MJ_PARSE_ERROR);
+        default:    return MJ_PARSE_ERROR;
     }
-    return TOK_CONTINUE;
+    return CONTINUE;
+}
+
+inline static int do_STR_END(mj_reader_t *r, char ch) {
+	if (is_whitespace(ch)) {
+		return CONTINUE;
+	}
+
+	r->tok_state = OUT;
+
+	if (ch == ':') {
+		reader_emit(r, TOK_OBJECT_KEY);
+		return CONTINUE;
+	}
+
+	reader_emit(r, TOK_STRING);
+	return AGAIN;
 }
 
 void mj_reader_init(mj_reader_t *r, char *string_buffer, int string_buffer_len) {
@@ -206,7 +258,7 @@ void mj_reader_init(mj_reader_t *r, char *string_buffer, int string_buffer_len) 
     r->strbuf_len = string_buffer_len;
     r->callback = nop;  
     r->userdata = NULL;
-    r->state = OUT;
+    r->tok_state = OUT;
     r->start = 0;
     r->sp = 0;
     r->ep = string_buffer_len;
@@ -217,31 +269,29 @@ void mj_reader_set_callback(mj_reader_t *r, mj_callback_fn cb, void *userdata) {
     r->userdata = userdata;
 }
 
-void mj_reader_push(mj_reader_t *r, const char *data, int len) {
-    for (int i = 0; i < len; ++i) {
+int mj_reader_push(mj_reader_t *r, const char *data, int len) {
+    for (int i = 0; i < len;) {
         char ch = data[i];
-        int tok;
-        switch (r->state) {
-            case OUT:       tok = do_OUT(r, ch);        break;
-            case KEYWORD:   tok = do_KEYWORD(r, ch);    break;
-            case SIGN:      tok = do_SIGN(r, ch);       break;
-            case INT:       tok = do_INT(r, ch);        break;
-            case FLOAT:     tok = do_FLOAT(r, ch);      break;
-            case STR:       tok = do_STR(r, ch);        break;
-            case STR_ESC:   tok = do_STR_ESC(r, ch);    break;
+        int res;
+        switch (r->tok_state) {
+            case OUT:       res = do_OUT(r, ch);        break;
+            case KEYWORD:   res = do_KEYWORD(r, ch);    break;
+            case SIGN:      res = do_SIGN(r, ch);       break;
+            case INT:       res = do_INT(r, ch);        break;
+            case FLOAT:     res = do_FLOAT(r, ch);      break;
+            case STR:       res = do_STR(r, ch);        break;
+            case STR_ESC:   res = do_STR_ESC(r, ch);    break;
+            case STR_END:   res = do_STR_END(r, ch);    break;
+            default:		res = r->tok_state;			break;
         }
-        if (tok > TOK_CONTINUE) {
-            if (tok == TOK_INT) {
-                printf("token: %d (val=%ld)\n", tok, r->value.i);
-            } else if (tok == TOK_FLOAT) {
-                printf("token: %d (val=%f)\n", tok, r->value.f);
-            } else if (tok == TOK_STRING) {
-                printf("token: %d (val=%.*s)\n", tok, r->sp - r->start, r->strbuf + r->start);
-            } else {
-                printf("token: %d\n", tok);
-            }
+        if (res < 0) {
+        	r->tok_state = res;
+        	return res;
+        } if (res == CONTINUE) {
+        	i++;
         }
     }
+    return MJ_OK;
 }
 
 void mj_reader_push_end(mj_reader_t *r) {

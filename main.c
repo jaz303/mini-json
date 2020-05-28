@@ -13,11 +13,14 @@ int main() {
 	mj_reader_init(&r, str_buffer, 512);
 	mj_reader_set_callback(&r, cb, NULL);
 
-	mj_reader_push(&r, "{ \"fo", 5);
-	mj_reader_push(&r, "o\": -12", 6);
-	mj_reader_push(&r, "34.0016, \"moose\": -1992 }", 24);
+	const char *json = "{ \"foo\": -1234.0016, \"bar\": \"quux\", \"items\": [true, false, null, -123] }";
+	mj_reader_push(&r, json, strlen(json));
 	mj_reader_push_end(&r);
 
+	// mj_reader_push(&r, "{ \"fo", 5);
+	// mj_reader_push(&r, "o\": -12", 7);
+	// mj_reader_push(&r, "34.0016, \"moose\": -1992 }", 24);
+	
 	// mj_writer_t w;
 	// char buffer[512];
 	// char bindata[] = "love take me down (to the streets)";

@@ -19,7 +19,7 @@ typedef struct mj_reader {
         MINI_JSON_FLOAT_TYPE f;
     } value;
 
-    int state;
+    int tok_state;
     int start, sp, ep;
 
     const char *kw;
@@ -42,7 +42,7 @@ typedef enum mj_status {
 
 void mj_reader_init(mj_reader_t *r, char *string_buffer, int string_buffer_len);
 void mj_reader_set_callback(mj_reader_t *r, mj_callback_fn cb, void *userdata);
-void mj_reader_push(mj_reader_t *r, const char *data, int len);
+int mj_reader_push(mj_reader_t *r, const char *data, int len);
 void mj_reader_push_end(mj_reader_t *r);
 
 void mj_writer_init(mj_writer_t *w, char *buffer, int len);
