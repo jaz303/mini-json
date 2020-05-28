@@ -14,8 +14,8 @@
 
 // +ve return values from tokeniser is next action
 enum {
-	CONTINUE = 1, // next tokenise again with same char
-	AGAIN = 2, // proceed to next char
+    CONTINUE = 1, // next tokenise again with same char
+    AGAIN = 2, // proceed to next char
 };
 
 // tokeniser state
@@ -47,19 +47,19 @@ enum {
 };
 
 const char *token_names[] = {
-	"!",
-	"{",
-	"}",
-	"<object-key>",
-	"[",
-	"]",
-	"null",
-	"true",
-	"false",
-	"<int>",
-	"<float>",
-	"<string>",
-	","
+    "!",
+    "{",
+    "}",
+    "<object-key>",
+    "[",
+    "]",
+    "null",
+    "true",
+    "false",
+    "<int>",
+    "<float>",
+    "<string>",
+    ","
 };
 
 static void nop(void *userdata) {
@@ -84,7 +84,7 @@ static int reader_push_start(mj_reader_t *r, char ch) {
 }
 
 static int reader_emit(mj_reader_t *r, int tok) {
-	if (tok == TOK_INT) {
+    if (tok == TOK_INT) {
         printf("token: %s (%ld)\n", token_names[tok], r->value.i);
     } else if (tok == TOK_FLOAT) {
         printf("token: %s (%f)\n", token_names[tok], r->value.f);
@@ -143,7 +143,7 @@ inline static int do_OUT(mj_reader_t *r, char ch) {
                 CHECK(reader_push_start(r, ch));
                 r->tok_state = INT;
             } else {
-            	return MJ_PARSE_ERROR;
+                return MJ_PARSE_ERROR;
             }
             break;
     }
@@ -154,10 +154,10 @@ inline static int do_KEYWORD(mj_reader_t *r, char ch) {
     if (ch == r->kw[r->kw_next]) {
         r->kw_next++;
         if (r->kw[r->kw_next] == 0) {
-        	r->tok_state = OUT;
-        	return reader_emit(r, r->kw_tok);
+            r->tok_state = OUT;
+            return reader_emit(r, r->kw_tok);
         } else {
-        	return CONTINUE;	
+            return CONTINUE;    
         }
     } else {
         return MJ_PARSE_ERROR;
@@ -170,7 +170,7 @@ inline static int do_SIGN(mj_reader_t *r, char ch) {
         r->tok_state = INT;
         return CONTINUE;
     } else {
-    	return MJ_PARSE_ERROR;
+        return MJ_PARSE_ERROR;
     }
 }
 
@@ -207,8 +207,8 @@ inline static int do_FLOAT(mj_reader_t *r, char ch) {
 
 inline static int do_STR(mj_reader_t *r, char ch) {
     if (ch == '"') {
-    	r->tok_state = STR_END;
-    	return CONTINUE;
+        r->tok_state = STR_END;
+        return CONTINUE;
     }
 
     if (ch == '\\') {
@@ -236,19 +236,19 @@ inline static int do_STR_ESC(mj_reader_t *r, char ch) {
 }
 
 inline static int do_STR_END(mj_reader_t *r, char ch) {
-	if (is_whitespace(ch)) {
-		return CONTINUE;
-	}
+    if (is_whitespace(ch)) {
+        return CONTINUE;
+    }
 
-	r->tok_state = OUT;
+    r->tok_state = OUT;
 
-	if (ch == ':') {
-		reader_emit(r, TOK_OBJECT_KEY);
-		return CONTINUE;
-	}
+    if (ch == ':') {
+        reader_emit(r, TOK_OBJECT_KEY);
+        return CONTINUE;
+    }
 
-	reader_emit(r, TOK_STRING);
-	return AGAIN;
+    reader_emit(r, TOK_STRING);
+    return AGAIN;
 }
 
 void mj_reader_init(mj_reader_t *r, char *string_buffer, int string_buffer_len) {
@@ -280,13 +280,13 @@ int mj_reader_push(mj_reader_t *r, const char *data, int len) {
             case STR:       res = do_STR(r, ch);        break;
             case STR_ESC:   res = do_STR_ESC(r, ch);    break;
             case STR_END:   res = do_STR_END(r, ch);    break;
-            default:		res = r->tok_state;			break;
+            default:        res = r->tok_state;         break;
         }
         if (res < 0) {
-        	r->tok_state = res;
-        	return res;
+            r->tok_state = res;
+            return res;
         } if (res == CONTINUE) {
-        	i++;
+            i++;
         }
     }
     return MJ_OK;
@@ -500,14 +500,14 @@ int mj_writer_put_int(mj_writer_t *w, int val) {
 }
 
 int mj_writer_put_long(mj_writer_t *w, long val) {
-	CHECK(comma(w));
-	int maxlen = w->ep - w->sp;
-	int written = snprintf(&w->buffer[w->sp], maxlen, "%ld", val);
-	if (written >= maxlen) {
-		return  MJ_NOMEM;
-	}
-	w->sp += written;
-	return MJ_OK;
+    CHECK(comma(w));
+    int maxlen = w->ep - w->sp;
+    int written = snprintf(&w->buffer[w->sp], maxlen, "%ld", val);
+    if (written >= maxlen) {
+        return  MJ_NOMEM;
+    }
+    w->sp += written;
+    return MJ_OK;
 }
 
 int mj_writer_put_float(mj_writer_t *w, float val) {
@@ -569,36 +569,36 @@ int mj_writer_put_int(mj_writer_t *w, int val) {
 }
 
 int mj_writer_put_long(mj_writer_t *w, long val) {
-	CHECK(comma(w));
-	
-	if (val == 0) {
-		return push_start(w, '0');
-	}
+    CHECK(comma(w));
+    
+    if (val == 0) {
+        return push_start(w, '0');
+    }
 
-	if (val < 0) {
-		CHECK(push_start(w, '-'));
-		val = -val;
-	}
+    if (val < 0) {
+        CHECK(push_start(w, '-'));
+        val = -val;
+    }
 
-	long len = 0, tmp = val;
-	while (tmp > 0) {
-		tmp /= 10;
-		len++;
-	}
+    long len = 0, tmp = val;
+    while (tmp > 0) {
+        tmp /= 10;
+        len++;
+    }
 
-	int end = w->sp + len;
-	if (end > w->ep) {
-		return MJ_NOMEM;
-	}
+    int end = w->sp + len;
+    if (end > w->ep) {
+        return MJ_NOMEM;
+    }
 
-	w->sp = end;
-	
-	while (val != 0) {
-		w->buffer[--end] = '0' + (val % 10);
-		val /= 10;
-	}
+    w->sp = end;
+    
+    while (val != 0) {
+        w->buffer[--end] = '0' + (val % 10);
+        val /= 10;
+    }
 
-	return MJ_OK;
+    return MJ_OK;
 }
 
 int mj_writer_put_float(mj_writer_t *w, float val) {
