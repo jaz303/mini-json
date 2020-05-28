@@ -239,6 +239,7 @@ inline static int do_STR_ESC(mj_reader_t *r, char ch) {
         case '\\':  CHECK(reader_push_start(r, '\\')); break;
         default:    return MJ_PARSE_ERROR;
     }
+    r->tok_state = STR;
     return CONTINUE;
 }
 
