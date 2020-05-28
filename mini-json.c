@@ -110,6 +110,20 @@ inline static int do_OUT(mj_reader_t *r, char ch) {
         case '[': return reader_emit(r, TOK_ARRAY_START);
         case ']': return reader_emit(r, TOK_ARRAY_END);
         case ',': return reader_emit(r, TOK_COMMA);
+        case '0':
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+        case '8':
+        case '9':
+            r->sp = r->start;
+            CHECK(reader_push_start(r, ch));
+            r->tok_state = INT;
+            break;
         case '-':
         case '+':
             r->sp = r->start;
@@ -132,17 +146,13 @@ inline static int do_OUT(mj_reader_t *r, char ch) {
             r->tok_state = KEYWORD;
             START_KEYWORD("ull", TOK_NULL);
             break;
-        default:
-            if (is_whitespace(ch)) {
-                // do nothing
-            } else if (is_digit(ch)) {
-                r->sp = r->start;
-                CHECK(reader_push_start(r, ch));
-                r->tok_state = INT;
-            } else {
-                return MJ_PARSE_ERROR;
-            }
+        case '\n':
+        case '\r':
+        case '\t':
+        case ' ':
             break;
+        default:
+            return MJ_PARSE_ERROR;
     }
     return CONTINUE;
 }
