@@ -12,8 +12,6 @@
 //
 // Reading
 
-#define READ_ERROR(err) r->tok_state = (err); return (err)
-
 // +ve return values from tokeniser is next action
 enum {
 	CONTINUE = 1, // next tokenise again with same char
