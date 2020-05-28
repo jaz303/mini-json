@@ -97,6 +97,12 @@ static int reader_emit(mj_reader_t *r, int tok) {
     return CONTINUE;
 }
 
+#define START_KEYWORD(tail, token) \
+    r->tok_state = KEYWORD; \
+    r->kw_tok = token; \
+    r->kw = tail; \
+    r->kw_next = 0
+
 inline static int do_OUT(mj_reader_t *r, char ch) {
     switch (ch) {
         case '{': return reader_emit(r, TOK_OBJECT_START);
@@ -116,23 +122,15 @@ inline static int do_OUT(mj_reader_t *r, char ch) {
             break;
         case 't':
             r->value.i = 1;
-            r->tok_state = KEYWORD;
-            r->kw = "rue";
-            r->kw_tok = TOK_TRUE;
-            r->kw_next = 0;
+            START_KEYWORD("rue", TOK_TRUE);
             break;
         case 'f':
             r->value.i = 0;
-            r->tok_state = KEYWORD;
-            r->kw = "alse";
-            r->kw_tok = TOK_FALSE;
-            r->kw_next = 0;
+            START_KEYWORD("alse", TOK_FALSE);
             break;
         case 'n':
             r->tok_state = KEYWORD;
-            r->kw = "ull";
-            r->kw_tok = TOK_NULL;
-            r->kw_next = 0;
+            START_KEYWORD("ull", TOK_NULL);
             break;
         default:
             if (is_whitespace(ch)) {
