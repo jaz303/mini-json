@@ -152,6 +152,8 @@ static int reader_parse_inner_value(mj_reader_t *r, int tok) {
     // }
 }
 
+// TODO: fix depth handling
+// TODO: handle EOF correctly
 static int reader_emit(mj_reader_t *r, int tok) {
     int ret = CONTINUE;
     switch (r->parse_state) {
@@ -266,7 +268,10 @@ inline static int do_OUT(mj_reader_t *r, char ch) {
         case '\r':
         case '\t':
         case ' ':
+            // skip whitespace
             break;
+        case 0:
+            return reader_emit(r, TOK_EOF);
         default:
             return MJ_TOK_ERROR;
     }
