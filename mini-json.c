@@ -4,6 +4,14 @@
 
 #include <stdio.h>
 
+#ifdef MINI_JSON_DECODE_INT_TYPE
+extern MINI_JSON_DECODE_INT_TYPE mj_decode_int(const char *start, int len);
+#endif
+
+#ifdef MINI_JSON_DECODE_FLOAT_TYPE
+extern MINI_JSON_DECODE_FLOAT_TYPE mj_decode_float(const char *start, int len);
+#endif
+
 //
 //
 
@@ -14,55 +22,55 @@
 
 // +ve return values from tokeniser is next action
 enum {
-    CONTINUE = 1, // proceed to next char
-    AGAIN = 2, // tokenise again with same char
+    CONTINUE = 1,   // proceed to next char
+    AGAIN = 2,      // tokenise again with same char
 };
 
-// tokeniser state
+// state
 enum {
     OUT,
+
+    // tokenisation
     KEYWORD,
     SIGN,
     INT,
     FLOAT,
     STR,
     STR_ESC,
-    STR_END
+    STR_END,
+
+    // parsing
+    SCALAR,
+    OBJECT,
+    OBJECT_KEY,
+    OBJECT_VALUE,
+    ARRAY,
+    ARRAY_VALUE,
+    DONE
 };
 
 // tokens
 enum {
-    TOK_OBJECT_START = 1, // 1
-    TOK_OBJECT_END, // 2
-    TOK_OBJECT_KEY, // 3
-    TOK_ARRAY_START, // 4
-    TOK_ARRAY_END, // 5
-    TOK_NULL, // 6
-    TOK_TRUE, // 7
-    TOK_FALSE, // 8
-    TOK_INT, // 9
-    TOK_FLOAT, // 10
-    TOK_STRING, // 11
-    TOK_COMMA, // 12
+    TOK_OBJECT_END,
+    TOK_OBJECT_KEY,
+    TOK_ARRAY_END,
+    TOK_COMMA,
+    TOK_EOF,
+
+    TOK_VALUE, // dummy
+    TOK_OBJECT_START,
+    TOK_ARRAY_START,
+
+    TOK_SCALAR, // dummy
+    TOK_NULL,
+    TOK_TRUE,
+    TOK_FALSE,
+    TOK_INT,
+    TOK_FLOAT,
+    TOK_STRING,
 };
 
-const char *token_names[] = {
-    "!",
-    "{",
-    "}",
-    "<object-key>",
-    "[",
-    "]",
-    "null",
-    "true",
-    "false",
-    "<int>",
-    "<float>",
-    "<string>",
-    ","
-};
-
-static void nop(void *userdata) {
+static void nop(mj_reader_t *r, void *userdata) {
 
 }
 
@@ -82,19 +90,124 @@ static int reader_push_start(mj_reader_t *r, char ch) {
     return MJ_OK;
 }
 
-static int reader_emit(mj_reader_t *r, int tok) {
-    if (tok == TOK_INT) {
-        printf("token: %s (%ld)\n", token_names[tok], r->value.i);
-    } else if (tok == TOK_FLOAT) {
-        printf("token: %s (%f)\n", token_names[tok], r->value.f);
-    } else if (tok == TOK_STRING) {
-        printf("token: %s (%.*s)\n", token_names[tok], r->sp - r->start, r->strbuf + r->start);
-    } else if (tok == TOK_OBJECT_KEY) {
-        printf("token: %s (%.*s)\n", token_names[tok], r->sp - r->start, r->strbuf + r->start);
-    } else {
-        printf("token: %s\n", token_names[tok]);
+static int reader_push_parse_state(mj_reader_t *r) {
+    if (r->ep - r->sp < 4) {
+        return MJ_NOMEM;
     }
+    r->strbuf[--r->ep] = r->parse_state;
+    r->strbuf[--r->ep] = r->child_index >> 16;
+    r->strbuf[--r->ep] = r->child_index >> 8;
+    r->strbuf[--r->ep] = r->child_index >> 0;
+    r->depth++;
     return CONTINUE;
+}
+
+static int reader_pop_parse_state(mj_reader_t *r) {
+    uint32_t ci1 = r->strbuf[r->ep++];
+    uint32_t ci2 = r->strbuf[r->ep++];
+    uint32_t ci3 = r->strbuf[r->ep++];
+
+    r->child_index = ci1 | (ci2 << 8) | (ci3 << 16);
+    r->parse_state = r->strbuf[r->ep++];
+    r->depth--;
+
+    // we only ever pop the parse state when we're exiting a scope
+    r->parse_state++;
+    
+    return CONTINUE;
+}
+
+static int reader_parse_inner_value(mj_reader_t *r, int tok) {
+    if (tok == TOK_OBJECT_START || tok == TOK_ARRAY_START) {
+        puts("in object/array");
+        // TODO: fire callback
+        r->child_index++;
+        reader_push_parse_state(r);
+        r->parse_state = (tok == TOK_OBJECT_START) ? OBJECT : ARRAY;
+        r->child_index = 0;
+        return CONTINUE;
+    } else if (tok > TOK_SCALAR) {
+        puts("got scalar");
+        // TODO: fire callback
+        r->child_index++;
+        r->parse_state++;
+        return CONTINUE;
+    } else {
+        return MJ_PARSE_ERROR;
+    }
+
+        // if (r->callback) {
+    //     r->callback(r, r->userdata);
+    // }
+    // if (tok == TOK_INT) {
+    //     printf("token: %s (%d)\n", token_names[tok], r->value.i);
+    // } else if (tok == TOK_FLOAT) {
+    //     printf("token: %s (%f)\n", token_names[tok], r->value.f);
+    // } else if (tok == TOK_STRING) {
+    //     printf("token: %s (%s)\n", token_names[tok], r->strbuf + r->start);
+    // } else if (tok == TOK_OBJECT_KEY) {
+    //     printf("token: %s (%.*s)\n", token_names[tok], r->sp - r->start, r->strbuf + r->start);
+    // } else {
+    //     printf("token: %s\n", token_names[tok]);
+    // }
+}
+
+static int reader_emit(mj_reader_t *r, int tok) {
+    int ret = CONTINUE;
+    switch (r->parse_state) {
+        case OUT:
+            if (tok == TOK_OBJECT_START || tok == TOK_ARRAY_START) {
+                r->depth = 1;
+                r->parse_state = (tok == TOK_OBJECT_START) ? OBJECT : ARRAY;
+            } else if (tok > TOK_SCALAR) {
+                // TODO: fire callback
+                r->parse_state = SCALAR;
+            } else {
+                ret = MJ_PARSE_ERROR;
+            }
+            break;
+        case OBJECT:
+            if (tok == TOK_OBJECT_END) {
+                ret = reader_pop_parse_state(r);
+            } else if (tok == TOK_OBJECT_KEY) {
+                // TODO: push path
+                r->parse_state = OBJECT_KEY;
+            }
+        case OBJECT_KEY:
+            ret = reader_parse_inner_value(r, tok);
+            break;
+        case OBJECT_VALUE:
+            if (tok == TOK_COMMA) {
+                r->parse_state = OBJECT;
+            } else if (tok == TOK_OBJECT_END) {
+                ret = reader_pop_parse_state(r);
+            } else {
+                ret = MJ_PARSE_ERROR;
+            }
+            break;
+        case ARRAY:
+            if (tok == TOK_ARRAY_END) {
+                ret = reader_pop_parse_state(r);
+            } else {
+                ret = reader_parse_inner_value(r, tok);
+            }
+        case ARRAY_VALUE:
+            if (tok == TOK_COMMA) {
+                r->parse_state = ARRAY;
+            } else if (tok == TOK_ARRAY_END) {
+                ret = reader_pop_parse_state(r);
+            } else {
+                ret = MJ_PARSE_ERROR;
+            }
+            break;
+        case SCALAR:
+            if (tok == TOK_EOF) {
+                r->parse_state = DONE;
+            } else {
+                ret = MJ_PARSE_ERROR;
+            }
+    }
+    return ret;
 }
 
 #define START_KEYWORD(tail, token) \
@@ -135,11 +248,11 @@ inline static int do_OUT(mj_reader_t *r, char ch) {
             r->tok_state = STR;
             break;
         case 't':
-            r->value.i = 1;
+            r->value.b = 1;
             START_KEYWORD("rue", TOK_TRUE);
             break;
         case 'f':
-            r->value.i = 0;
+            r->value.b = 0;
             START_KEYWORD("alse", TOK_FALSE);
             break;
         case 'n':
@@ -152,7 +265,7 @@ inline static int do_OUT(mj_reader_t *r, char ch) {
         case ' ':
             break;
         default:
-            return MJ_PARSE_ERROR;
+            return MJ_TOK_ERROR;
     }
     return CONTINUE;
 }
@@ -167,7 +280,7 @@ inline static int do_KEYWORD(mj_reader_t *r, char ch) {
             return CONTINUE;    
         }
     } else {
-        return MJ_PARSE_ERROR;
+        return MJ_TOK_ERROR;
     }
 }
 
@@ -177,7 +290,7 @@ inline static int do_SIGN(mj_reader_t *r, char ch) {
         r->tok_state = INT;
         return CONTINUE;
     } else {
-        return MJ_PARSE_ERROR;
+        return MJ_TOK_ERROR;
     }
 }
 
@@ -190,8 +303,11 @@ inline static int do_INT(mj_reader_t *r, char ch) {
         r->tok_state = FLOAT;
         return CONTINUE;
     } else {
-        char *end = r->strbuf + r->sp;
-        r->value.i = strtol(r->strbuf + r->start, &end, 10);
+#ifdef MINI_JSON_DECODE_INT_TYPE
+        int len = r->sp - r->start;
+        CHECK(reader_push_start(r, 0));
+        r->value.i = mj_decode_int(r->strbuf + r->start, len);
+#endif
         reader_emit(r, TOK_INT);
         r->tok_state = OUT;
         return AGAIN;
@@ -204,8 +320,11 @@ inline static int do_FLOAT(mj_reader_t *r, char ch) {
         CHECK(reader_push_start(r, ch));
         return CONTINUE;
     } else {
-        char *end = r->strbuf + r->sp;
-        r->value.f = strtof(r->strbuf + r->start, &end);
+#ifdef MINI_JSON_DECODE_FLOAT_TYPE
+        int len = r->sp - r->start;
+        CHECK(reader_push_start(r, 0));
+        r->value.f = mj_decode_float(r->strbuf + r->start, len);
+#endif
         reader_emit(r, TOK_FLOAT);
         r->tok_state = OUT;
         return AGAIN;
@@ -214,6 +333,7 @@ inline static int do_FLOAT(mj_reader_t *r, char ch) {
 
 inline static int do_STR(mj_reader_t *r, char ch) {
     if (ch == '"') {
+        CHECK(reader_push_start(r, 0));
         r->tok_state = STR_END;
         return CONTINUE;
     }
@@ -237,7 +357,7 @@ inline static int do_STR_ESC(mj_reader_t *r, char ch) {
         case 't':   CHECK(reader_push_start(r, '\t')); break;
         case '"':   CHECK(reader_push_start(r, '"'));  break;
         case '\\':  CHECK(reader_push_start(r, '\\')); break;
-        default:    return MJ_PARSE_ERROR;
+        default:    return MJ_TOK_ERROR;
     }
     r->tok_state = STR;
     return CONTINUE;
@@ -268,6 +388,10 @@ void mj_reader_init(mj_reader_t *r, char *string_buffer, int string_buffer_len) 
     r->start = 0;
     r->sp = 0;
     r->ep = string_buffer_len;
+
+    r->depth = 0;
+    r->parse_state = OUT;
+    r->child_index = 0;
 }
 
 void mj_reader_set_callback(mj_reader_t *r, mj_callback_fn cb, void *userdata) {

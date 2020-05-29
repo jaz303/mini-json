@@ -1,11 +1,15 @@
 #ifndef MINI_JSON_H
 #define MINI_JSON_H
 
+#include <stdint.h>
+
 #ifndef MINI_JSON_FLOAT_TYPE
 #define MINI_JSON_FLOAT_TYPE float
 #endif
 
-typedef void (*mj_callback_fn)(void *userdata);
+struct mj_reader;
+
+typedef void (*mj_callback_fn)(struct mj_reader* r, void *userdata);
 
 typedef struct mj_reader {
     char *strbuf;
@@ -15,8 +19,13 @@ typedef struct mj_reader {
     void *userdata;
 
     union {
-        long i;
-        MINI_JSON_FLOAT_TYPE f;
+        char b;
+#ifdef MINI_JSON_DECODE_INT_TYPE
+        MINI_JSON_DECODE_INT_TYPE i;
+#endif
+#ifdef MINI_JSON_DECODE_FLOAT_TYPE
+        MINI_JSON_DECODE_FLOAT_TYPE f;
+#endif
     } value;
 
     int tok_state;
@@ -24,6 +33,11 @@ typedef struct mj_reader {
 
     const char *kw;
     int kw_next, kw_tok;
+
+    uint16_t depth;
+    
+    uint8_t parse_state;
+    uint32_t child_index;
 } mj_reader_t;
 
 typedef struct mj_writer {
@@ -36,8 +50,8 @@ typedef enum mj_status {
     MJ_NOMEM        = -1,
     MJ_STATE        = -2,
     MJ_UNSUPPORTED  = -3,
-
-    MJ_PARSE_ERROR  = -4
+    MJ_TOK_ERROR    = -4,
+    MJ_PARSE_ERROR  = -5
 } mj_status_t;
 
 void mj_reader_init(mj_reader_t *r, char *string_buffer, int string_buffer_len);
