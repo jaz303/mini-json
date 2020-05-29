@@ -173,6 +173,7 @@ static int reader_emit(mj_reader_t *r, int tok) {
                 // TODO: push path
                 r->parse_state = OBJECT_KEY;
             }
+            break;
         case OBJECT_KEY:
             ret = reader_parse_inner_value(r, tok);
             break;
@@ -191,6 +192,7 @@ static int reader_emit(mj_reader_t *r, int tok) {
             } else {
                 ret = reader_parse_inner_value(r, tok);
             }
+            break;
         case ARRAY_VALUE:
             if (tok == TOK_COMMA) {
                 r->parse_state = ARRAY;
@@ -206,6 +208,7 @@ static int reader_emit(mj_reader_t *r, int tok) {
             } else {
                 ret = MJ_PARSE_ERROR;
             }
+            break;
     }
     return ret;
 }
