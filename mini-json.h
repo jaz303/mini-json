@@ -9,7 +9,7 @@
 
 struct mj_reader;
 
-typedef void (*mj_callback_fn)(struct mj_reader* r, void *userdata);
+typedef void (*mj_callback_fn)(struct mj_reader *r, int event, void *userdata);
 
 typedef struct mj_reader {
     char *strbuf;
@@ -28,16 +28,16 @@ typedef struct mj_reader {
 #endif
     } value;
 
-    int tok_state;
+    // Buffer management    
     int start, sp, ep;
 
-    const char *kw;
-    int kw_next, kw_tok;
-
+    // Parsing
     uint16_t depth;
-    
     uint8_t parse_state;
     uint32_t child_index;
+
+    // Tokenisation
+    int tok_state;
 } mj_reader_t;
 
 typedef struct mj_writer {

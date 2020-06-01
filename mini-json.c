@@ -20,6 +20,12 @@ extern MINI_JSON_DECODE_FLOAT_TYPE mj_decode_float(const char *start, int len);
 //
 // Reading
 
+static inline void fire(mj_reader_t *r, int evt) {
+    if (r->callback != NULL) {
+        r->callback(r, evt, r->userdata);
+    }
+}
+
 // +ve return values from tokeniser is next action
 enum {
     CONTINUE = 1,   // proceed to next char
@@ -63,14 +69,13 @@ enum {
 
     TOK_SCALAR, // dummy
     TOK_NULL,
-    TOK_TRUE,
-    TOK_FALSE,
+    TOK_BOOL,
     TOK_INT,
     TOK_FLOAT,
     TOK_STRING,
 };
 
-static void nop(mj_reader_t *r, void *userdata) {
+static void nop(mj_reader_t *r, int event, void *userdata) {
 
 }
 
@@ -119,16 +124,14 @@ static int reader_pop_parse_state(mj_reader_t *r) {
 
 static int reader_parse_inner_value(mj_reader_t *r, int tok) {
     if (tok == TOK_OBJECT_START || tok == TOK_ARRAY_START) {
-        puts("in object/array");
-        // TODO: fire callback
+        fire(r, tok);
         r->child_index++;
         reader_push_parse_state(r);
         r->parse_state = (tok == TOK_OBJECT_START) ? OBJECT : ARRAY;
         r->child_index = 0;
         return CONTINUE;
     } else if (tok > TOK_SCALAR) {
-        puts("got scalar");
-        // TODO: fire callback
+        fire(r, tok);
         r->child_index++;
         r->parse_state++;
         return CONTINUE;
@@ -155,6 +158,10 @@ static int reader_parse_inner_value(mj_reader_t *r, int tok) {
 // TODO: fix depth handling
 // TODO: handle EOF correctly
 static int reader_emit(mj_reader_t *r, int tok) {
+    if (tok == TOK_NULL) {
+        printf("null: %d\n", r->value.b);
+    }
+
     int ret = CONTINUE;
     switch (r->parse_state) {
         case OUT:
@@ -215,11 +222,22 @@ static int reader_emit(mj_reader_t *r, int tok) {
     return ret;
 }
 
-#define START_KEYWORD(tail, token) \
-    r->tok_state = KEYWORD; \
-    r->kw_tok = token; \
-    r->kw = tail; \
-    r->kw_next = 0
+// Keywords are handled by copying them into the buffer and then
+// incrementally comparing as more characters become available.
+inline static int reader_start_keyword(mj_reader_t *r, const char *keyword, int len) {
+    r->tok_state = KEYWORD;
+    r->sp = r->start;
+    if (r->sp + len + 1 > r->ep) {
+        return MJ_NOMEM;
+    }
+    int wp = r->sp;
+    while (*keyword) {
+        r->strbuf[wp++] = *keyword++;
+    }
+    r->strbuf[wp++] = 0;
+    r->sp++; // we've already seen the first character
+    return CONTINUE;
+}
 
 inline static int do_OUT(mj_reader_t *r, char ch) {
     switch (ch) {
@@ -254,15 +272,14 @@ inline static int do_OUT(mj_reader_t *r, char ch) {
             break;
         case 't':
             r->value.b = 1;
-            START_KEYWORD("rue", TOK_TRUE);
+            CHECK(reader_start_keyword(r, "true", 4));
             break;
         case 'f':
             r->value.b = 0;
-            START_KEYWORD("alse", TOK_FALSE);
+            CHECK(reader_start_keyword(r, "false", 5));
             break;
         case 'n':
-            r->tok_state = KEYWORD;
-            START_KEYWORD("ull", TOK_NULL);
+            CHECK(reader_start_keyword(r, "null", 4));
             break;
         case '\n':
         case '\r':
@@ -279,13 +296,14 @@ inline static int do_OUT(mj_reader_t *r, char ch) {
 }
 
 inline static int do_KEYWORD(mj_reader_t *r, char ch) {
-    if (ch == r->kw[r->kw_next]) {
-        r->kw_next++;
-        if (r->kw[r->kw_next] == 0) {
+    if (ch == r->strbuf[r->sp]) {
+        r->sp++;
+        if (r->strbuf[r->sp] == 0) {
             r->tok_state = OUT;
-            return reader_emit(r, r->kw_tok);
+            int tok = (r->strbuf[r->start] == 'n') ? TOK_NULL : TOK_BOOL;
+            return reader_emit(r, tok);
         } else {
-            return CONTINUE;    
+            return CONTINUE;
         }
     } else {
         return MJ_TOK_ERROR;
