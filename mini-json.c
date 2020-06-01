@@ -157,7 +157,8 @@ static int reader_parse_inner_value(mj_reader_t *r, int tok) {
 
 // TODO: fix depth handling
 // TODO: handle EOF correctly
-static int reader_emit(mj_reader_t *r, int tok) {
+//
+static int reader_handle_token(mj_reader_t *r, int tok) {
     if (tok == TOK_NULL) {
         printf("null: %d\n", r->value.b);
     }
@@ -241,11 +242,11 @@ inline static int reader_start_keyword(mj_reader_t *r, const char *keyword, int 
 
 inline static int do_OUT(mj_reader_t *r, char ch) {
     switch (ch) {
-        case '{': return reader_emit(r, TOK_OBJECT_START);
-        case '}': return reader_emit(r, TOK_OBJECT_END);
-        case '[': return reader_emit(r, TOK_ARRAY_START);
-        case ']': return reader_emit(r, TOK_ARRAY_END);
-        case ',': return reader_emit(r, TOK_COMMA);
+        case '{': return reader_handle_token(r, TOK_OBJECT_START);
+        case '}': return reader_handle_token(r, TOK_OBJECT_END);
+        case '[': return reader_handle_token(r, TOK_ARRAY_START);
+        case ']': return reader_handle_token(r, TOK_ARRAY_END);
+        case ',': return reader_handle_token(r, TOK_COMMA);
         case '0':
         case '1':
         case '2':
@@ -288,7 +289,7 @@ inline static int do_OUT(mj_reader_t *r, char ch) {
             // skip whitespace
             break;
         case 0:
-            return reader_emit(r, TOK_EOF);
+            return reader_handle_token(r, TOK_EOF);
         default:
             return MJ_TOK_ERROR;
     }
@@ -301,7 +302,7 @@ inline static int do_KEYWORD(mj_reader_t *r, char ch) {
         if (r->strbuf[r->sp] == 0) {
             r->tok_state = OUT;
             int tok = (r->strbuf[r->start] == 'n') ? TOK_NULL : TOK_BOOL;
-            return reader_emit(r, tok);
+            return reader_handle_token(r, tok);
         } else {
             return CONTINUE;
         }
@@ -334,7 +335,7 @@ inline static int do_INT(mj_reader_t *r, char ch) {
         CHECK(reader_push_start(r, 0));
         r->value.i = mj_decode_int(r->strbuf + r->start, len);
 #endif
-        reader_emit(r, TOK_INT);
+        reader_handle_token(r, TOK_INT);
         r->tok_state = OUT;
         return AGAIN;
     }
@@ -351,7 +352,7 @@ inline static int do_FLOAT(mj_reader_t *r, char ch) {
         CHECK(reader_push_start(r, 0));
         r->value.f = mj_decode_float(r->strbuf + r->start, len);
 #endif
-        reader_emit(r, TOK_FLOAT);
+        reader_handle_token(r, TOK_FLOAT);
         r->tok_state = OUT;
         return AGAIN;
     }
@@ -397,11 +398,11 @@ inline static int do_STR_END(mj_reader_t *r, char ch) {
     r->tok_state = OUT;
 
     if (ch == ':') {
-        reader_emit(r, TOK_OBJECT_KEY);
+        reader_handle_token(r, TOK_OBJECT_KEY);
         return CONTINUE;
     }
 
-    reader_emit(r, TOK_STRING);
+    reader_handle_token(r, TOK_STRING);
     return AGAIN;
 }
 
