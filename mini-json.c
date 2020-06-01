@@ -22,7 +22,7 @@ extern MINI_JSON_DECODE_FLOAT_TYPE mj_decode_float(const char *start, int len);
 
 static inline void fire(mj_reader_t *r, int evt) {
     if (r->callback != NULL) {
-        r->callback(r, evt, r->userdata);
+        r->callback(r, evt);
     }
 }
 
@@ -74,10 +74,6 @@ enum {
     TOK_FLOAT,
     TOK_STRING,
 };
-
-static void nop(mj_reader_t *r, int event, void *userdata) {
-
-}
 
 static int is_whitespace(char ch) {
     return ch == ' ' || ch == '\r' || ch == '\n' || ch == '\t';
@@ -158,11 +154,13 @@ static int reader_parse_inner_value(mj_reader_t *r, int tok) {
 // TODO: fix depth handling
 // TODO: handle EOF correctly
 //
+// Called after a token is parsed successfully.
+//
+// If the tok > TOK_SCALAR, or tok == TOK_OBJECT_KEY, the null-terminated
+// token text can be found at r->strbuf[r->start]. If the token is
+// TOK_OBJECT_KEY or TOK_STRING this text will be the string value, without
+// surrounding quotes, and with escape characters decoded.
 static int reader_handle_token(mj_reader_t *r, int tok) {
-    if (tok == TOK_NULL) {
-        printf("null: %d\n", r->value.b);
-    }
-
     int ret = CONTINUE;
     switch (r->parse_state) {
         case OUT:
@@ -409,9 +407,9 @@ inline static int do_STR_END(mj_reader_t *r, char ch) {
 void mj_reader_init(mj_reader_t *r, char *string_buffer, int string_buffer_len) {
     r->strbuf = string_buffer;
     r->strbuf_len = string_buffer_len;
-    r->callback = nop;  
-    r->userdata = NULL;
-    r->tok_state = OUT;
+
+    r->callback = NULL;
+    
     r->start = 0;
     r->sp = 0;
     r->ep = string_buffer_len;
@@ -419,11 +417,12 @@ void mj_reader_init(mj_reader_t *r, char *string_buffer, int string_buffer_len) 
     r->depth = 0;
     r->parse_state = OUT;
     r->child_index = 0;
+
+    r->tok_state = OUT;
 }
 
-void mj_reader_set_callback(mj_reader_t *r, mj_callback_fn cb, void *userdata) {
-    r->callback = (cb == NULL) ? nop : cb;
-    r->userdata = userdata;
+void mj_reader_set_callback(mj_reader_t *r, mj_callback_fn cb) {
+    r->callback = cb;
 }
 
 int mj_reader_push(mj_reader_t *r, const char *data, int len) {

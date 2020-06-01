@@ -9,14 +9,13 @@
 
 struct mj_reader;
 
-typedef void (*mj_callback_fn)(struct mj_reader *r, int event, void *userdata);
+typedef void (*mj_callback_fn)(struct mj_reader *r, int event);
 
 typedef struct mj_reader {
     char *strbuf;
     int strbuf_len;
     
     mj_callback_fn callback;
-    void *userdata;
 
     union {
         char b;
@@ -55,7 +54,7 @@ typedef enum mj_status {
 } mj_status_t;
 
 void mj_reader_init(mj_reader_t *r, char *string_buffer, int string_buffer_len);
-void mj_reader_set_callback(mj_reader_t *r, mj_callback_fn cb, void *userdata);
+void mj_reader_set_callback(mj_reader_t *r, mj_callback_fn cb);
 int mj_reader_push(mj_reader_t *r, const char *data, int len);
 void mj_reader_push_end(mj_reader_t *r);
 
